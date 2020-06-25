@@ -24,7 +24,6 @@ const requestToPromise = (url, deep, verbose) => {
           resolve(JSON.parse(response.body).data);
         }
       } catch (e) {
-        console.log("Error parsing json");
         reject(e);
       }
     });
@@ -47,7 +46,7 @@ const typeDefs = gql`
     title: String! #title
     content: String #selftext ou selftext_html
     author: String! #author_fullname
-    #comments: [Comment]
+    comments: [Comment]
   }
 
   type Comment {
@@ -89,8 +88,6 @@ const reddits = [
   },
 ];
 
-// Resolvers define the technique for fetching the types defined in the
-// schema. This resolver retrieves books from the "books" array above.
 const resolvers = {
   Query: {
     users: () => users,
