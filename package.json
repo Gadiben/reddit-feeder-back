@@ -11,6 +11,8 @@
   "license": "ISC",
   "dependencies": {
     "apollo-server": "^2.15.0",
-    "graphql": "^15.1.0"
+    "graphql": "^15.1.0",
+    "reddit": "^1.0.3",
+    "request": "^2.88.2"
   }
 }
