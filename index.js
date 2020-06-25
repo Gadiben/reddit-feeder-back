@@ -30,22 +30,87 @@ const requestToPromise = (url, deep, verbose) => {
   });
 };
 
+const fetchPostsComments = async (subReddits) => {
+  const posts = await Promise.all(
+    subReddits.children.map((item) =>
+      requestToPromise(
+        BASE_URL + "/" + item.data.display_name_prefixed + "/new.json?limit=3"
+      )
+    )
+  );
+  let fullData = {};
+  subReddits.children.forEach((item) => {
+    fullData[item.data.display_name_prefixed] = {
+      title: item.data.display_name_prefixed,
+      posts: {},
+    };
+  });
+  posts.forEach((subReddit) => {
+    if (!subReddit) return;
+    subReddit.children.forEach((post) => {
+      const postData = post.data;
+      fullData[postData.subreddit_name_prefixed].posts[postData.id] = {
+        author: postData.author,
+        title: postData.title,
+        content: postData.selftext,
+        thumbnail: postData.thumbnail,
+        comments: [],
+      };
+    });
+  });
+  const commentsLink = posts.flatMap((sub) => {
+    return sub ? sub.children.map((post) => post.data.permalink) : null;
+  });
+
+  const comments = await Promise.all(
+    commentsLink.map((link) => {
+      return link
+        ? requestToPromise(BASE_URL + link + ".json?limit=5&depth=1", true)
+        : null;
+    })
+  );
+
+  comments.forEach((post) => {
+    if (!post) {
+      return;
+    }
+    const postId = post[0].data.children[0].data.id;
+    post[1].data.children.forEach((comment) => {
+      const commentData = comment.data;
+      if (!commentData.subreddit_name_prefixed) {
+        return;
+      }
+
+      fullData[commentData.subreddit_name_prefixed].posts[postId].comments.push(
+        {
+          author: commentData.author,
+          content: commentData.body,
+        }
+      );
+    });
+  });
+  let finalData = Object.values(fullData);
+  for (let index = 0; index < finalData.length; index++) {
+    finalData[index].posts = Object.values(finalData[index].posts);
+  }
+  return finalData;
+};
 // A schema is a collection of type definitions (hence "typeDefs")
 // that together define the "shape" of queries that are executed against
 // your data.
 const typeDefs = gql`
   # Comments in GraphQL strings (such as this one) start with the hash (#) symbol.
 
-  # This "Book" type defines the queryable fields for every book in our data source.
   type User {
     name: String
     bookmarks: [String]
   }
 
   type Post {
-    title: String! #title
-    content: String #selftext ou selftext_html
-    author: String! #author_fullname
+    title: String!
+    content: String
+    author: String!
+    thumbnail: String
     comments: [Comment]
   }
 
@@ -116,88 +181,21 @@ const resolvers = {
       const subReddits = await requestToPromise(
         BASE_URL + "/subreddits/search.json?q=" + args.term
       );
-      const posts = await Promise.all(
-        subReddits.children.map((item) =>
-          requestToPromise(
-            BASE_URL +
-              "/" +
-              item.data.display_name_prefixed +
-              "/new.json?limit=3"
-          )
-        )
-      );
-      let fullData = {};
-      subReddits.children.forEach((item) => {
-        fullData[item.data.display_name_prefixed] = {
-          title: item.data.display_name_prefixed,
-          posts: {},
-        };
-      });
-      posts.forEach((subReddit) => {
-        if (!subReddit) return;
-        subReddit.children.forEach((post) => {
-          const postData = post.data;
-          fullData[postData.subreddit_name_prefixed].posts[postData.id] = {
-            author: postData.author,
-            title: postData.title,
-            content: postData.selftext,
-            comments: [],
-          };
-        });
-      });
-      const commentsLink = posts.flatMap((sub) => {
-        return sub ? sub.children.map((post) => post.data.permalink) : null;
-      });
-
-      const comments = await Promise.all(
-        commentsLink.map((link) => {
-          return link
-            ? requestToPromise(BASE_URL + link + ".json?limit=5&depth=1", true)
-            : null;
-        })
-      );
-      //hfhuej
-      comments.forEach((post) => {
-        if (!post) {
-          return;
-        }
-        const postId = post[0].data.children[0].data.id;
-        post[1].data.children.forEach((comment) => {
-          const commentData = comment.data;
-          if (!commentData.subreddit_name_prefixed) {
-            return;
-          }
-
-          fullData[commentData.subreddit_name_prefixed].posts[
-            postId
-          ].comments.push({
-            author: commentData.author,
-            content: commentData.body,
-          });
-        });
-      });
-      let finalData = Object.values(fullData);
-      for (let index = 0; index < finalData.length; index++) {
-        finalData[index].posts = Object.values(finalData[index].posts);
-      }
-
-      return finalData;
+      return fetchPostsComments(subReddits);
     },
     searchPopularReddit: async () => {
-      const res = await requestToPromise(
-        BASE_URL + "/subreddits/popular.json?limit=100"
+      const subReddits = await requestToPromise(
+        BASE_URL + "/subreddits/popular.json?limit=10"
       );
-      return res.children.map((el) => {
-        return { title: el.data.display_name_prefixed };
-      });
+      const data = fetchPostsComments(subReddits);
+      return data;
     },
     searchNewReddit: async () => {
-      const res = await requestToPromise(
+      const subReddits = await requestToPromise(
         BASE_URL + "/subreddits/new.json?limit=100"
       );
-      return res.children.map((el) => {
-        return { title: el.data.display_name_prefixed };
-      });
+      const data = fetchPostsComments(subReddits);
+      return data;
     },
   },
 };
@@ -206,36 +204,17 @@ const resolvers = {
 // definition and your set of resolvers.
 const server = new ApolloServer({ typeDefs, resolvers });
 
-const reddit = new Reddit({
-  username: "GautierDervaux",
-  password: "In2&9Fam59Ous0%6",
-  appId: "p1O8WVt0THqZ5w",
-  appSecret: "K2u3SbP-JcgBT6PU1vydVoCHZgo",
-  userAgent: "RedditFeeder/1.0.0 (http://gadiben.github.io)",
-});
-
 // The `listen` method launches a web server.
 server.listen().then(({ url }) => {
   console.log(`🚀  Server ready at ${url}`);
-  request(
-    "https://www.reddit.com/subreddits/search.json?q=earth",
-    { json: true, q: "earth" },
-    (err, res, body) => {
-      if (err) {
-        return console.log(err);
-      }
-      console.log(res);
-      console.log(res.body);
-      console.log(body.explanation);
-    }
-  );
-  resolvers.Query.searchReddit(null, { term: "earth" })
-    .then((res) => console.log(res))
-    .catch((err) => console.log(err));
 
-  // resolvers.Query.searchPopularReddit()
+  // resolvers.Query.searchReddit(null, { term: "earth" })
   //   .then((res) => console.log(res))
   //   .catch((err) => console.log(err));
+
+  resolvers.Query.searchPopularReddit()
+    .then((res) => console.log(res))
+    .catch((err) => console.log(err));
 
   // resolvers.Query.searchNewReddit()
   //   .then((res) => console.log(res))
