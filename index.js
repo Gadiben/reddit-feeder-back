@@ -3,16 +3,28 @@ const { ApolloServer, gql } = require("apollo-server");
 const Reddit = require("reddit");
 const request = require("request");
 
-const requestToPromise = (url) => {
+const BASE_URL = "http://www.reddit.com";
+
+const requestToPromise = (url, deep, verbose) => {
   return new Promise(function (resolve, reject) {
-    request(url, {}, function (error, response, body) {
+    request(encodeURI(url), {}, function (error, response, body) {
+      if (verbose) {
+        console.log(url);
+        console.log(error);
+        // console.log(response.body);
+      }
       if (error) {
         return reject(error);
       }
       try {
         // JSON.parse() can throw an exception if not valid JSON
-        resolve(JSON.parse(response.body).data);
+        if (deep) {
+          resolve(JSON.parse(response.body));
+        } else {
+          resolve(JSON.parse(response.body).data);
+        }
       } catch (e) {
+        console.log("Error parsing json");
         reject(e);
       }
     });
@@ -31,15 +43,29 @@ const typeDefs = gql`
     bookmarks: [String]
   }
 
+  type Post {
+    title: String! #title
+    content: String #selftext ou selftext_html
+    author: String! #author_fullname
+    #comments: [Comment]
+  }
+
+  type Comment {
+    author: String!
+    content: String!
+  }
+
   type SubReddit {
-    title: String
+    title: String!
+    posts: [Post]
   }
 
   # The "Query" type is special: it lists all of the available queries that
-  # clients can execute, along with the return type for each. In this
-  # case, the "books" query returns an array of zero or more Books (defined above).
+  # clients can execute, along with the return type for each.
   type Query {
     users: [User]
+    searchPopularReddit: [SubReddit]
+    searchNewReddit: [SubReddit]
     searchReddit(term: String): [SubReddit]
   }
 `;
@@ -69,15 +95,64 @@ const resolvers = {
   Query: {
     users: () => users,
     searchReddit: async (parent, args, context, info) => {
-      // console.log(args);
-      // const res = await reddit.post("/api/search_reddit_names", {
-      //   query: args.term,
+      const subReddits = await requestToPromise(
+        BASE_URL + "/subreddits/search.json?q=" + args.term
+      );
+      const posts = await Promise.all(
+        subReddits.children.map((item) =>
+          requestToPromise(
+            BASE_URL +
+              "/" +
+              item.data.display_name_prefixed +
+              "/new.json?limit=3"
+          )
+        )
+      );
+
+      const commentsLink = posts.flatMap((sub) => {
+        return sub ? sub.children.map((post) => post.data.permalink) : null;
+      });
+
+      const comments = await Promise.all(
+        commentsLink.map((link) => {
+          return link
+            ? requestToPromise(BASE_URL + link + ".json?limit=5&depth=1", true)
+            : null;
+        })
+      );
+
+      // const replies = posts.child
+      return posts;
+
+      // return subReddits.children.map(async (el) => {
+      //   let posts = await requestToPromise(
+      //     "https://www.reddit.com/" +
+      //       el.data.display_name_prefixed +
+      //       "/new.json"
+      //   );
+      //   return {
+      //     title: el.data.display_name_prefixed,
+      //     posts: posts.children.map((el) => {
+      //       return {
+      //         title: el.title,
+      //         content: el.selftext,
+      //         author: el.author_fullname,
+      //       };
+      //     }),
+      //   };
       // });
-      // return res.names.map((el) => {
-      //   return { title: el };
-      // });
+    },
+    searchPopularReddit: async () => {
       const res = await requestToPromise(
-        "https://www.reddit.com/subreddits/search.json?q=" + args.term
+        BASE_URL + "/subreddits/popular.json?limit=100"
+      );
+      return res.children.map((el) => {
+        return { title: el.data.display_name_prefixed };
+      });
+    },
+    searchNewReddit: async () => {
+      const res = await requestToPromise(
+        BASE_URL + "/subreddits/new.json?limit=100"
       );
       return res.children.map((el) => {
         return { title: el.data.display_name_prefixed };
@@ -114,6 +189,14 @@ server.listen().then(({ url }) => {
     }
   );
   resolvers.Query.searchReddit(null, { term: "earth" })
+    .then((res) => console.log(res))
+    .catch((err) => console.log(err));
+
+  resolvers.Query.searchPopularReddit()
+    .then((res) => console.log(res))
+    .catch((err) => console.log(err));
+
+  resolvers.Query.searchNewReddit()
     .then((res) => console.log(res))
     .catch((err) => console.log(err));
 });
