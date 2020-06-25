@@ -88,6 +88,27 @@ const reddits = [
   },
 ];
 
+/*
+res = {
+  "r/Home":{
+    title: "r/Home"
+    posts:{
+      "hfjadv":{
+        author:
+        title:
+        content:
+        comments: [
+          {
+            author:
+            content:
+          }
+        ]
+  
+      }
+    }
+  }
+}
+*/
 const resolvers = {
   Query: {
     users: () => users,
@@ -105,7 +126,25 @@ const resolvers = {
           )
         )
       );
-
+      let fullData = {};
+      subReddits.children.forEach((item) => {
+        fullData[item.data.display_name_prefixed] = {
+          title: item.data.display_name_prefixed,
+          posts: {},
+        };
+      });
+      posts.forEach((subReddit) => {
+        if (!subReddit) return;
+        subReddit.children.forEach((post) => {
+          const postData = post.data;
+          fullData[postData.subreddit_name_prefixed].posts[postData.id] = {
+            author: postData.author,
+            title: postData.title,
+            content: postData.selftext,
+            comments: [],
+          };
+        });
+      });
       const commentsLink = posts.flatMap((sub) => {
         return sub ? sub.children.map((post) => post.data.permalink) : null;
       });
@@ -117,27 +156,32 @@ const resolvers = {
             : null;
         })
       );
+      //hfhuej
+      comments.forEach((post) => {
+        if (!post) {
+          return;
+        }
+        const postId = post[0].data.children[0].data.id;
+        post[1].data.children.forEach((comment) => {
+          const commentData = comment.data;
+          if (!commentData.subreddit_name_prefixed) {
+            return;
+          }
 
-      // const replies = posts.child
-      return posts;
+          fullData[commentData.subreddit_name_prefixed].posts[
+            postId
+          ].comments.push({
+            author: commentData.author,
+            content: commentData.body,
+          });
+        });
+      });
+      let finalData = Object.values(fullData);
+      for (let index = 0; index < finalData.length; index++) {
+        finalData[index].posts = Object.values(finalData[index].posts);
+      }
 
-      // return subReddits.children.map(async (el) => {
-      //   let posts = await requestToPromise(
-      //     "https://www.reddit.com/" +
-      //       el.data.display_name_prefixed +
-      //       "/new.json"
-      //   );
-      //   return {
-      //     title: el.data.display_name_prefixed,
-      //     posts: posts.children.map((el) => {
-      //       return {
-      //         title: el.title,
-      //         content: el.selftext,
-      //         author: el.author_fullname,
-      //       };
-      //     }),
-      //   };
-      // });
+      return finalData;
     },
     searchPopularReddit: async () => {
       const res = await requestToPromise(
@@ -189,11 +233,11 @@ server.listen().then(({ url }) => {
     .then((res) => console.log(res))
     .catch((err) => console.log(err));
 
-  resolvers.Query.searchPopularReddit()
-    .then((res) => console.log(res))
-    .catch((err) => console.log(err));
+  // resolvers.Query.searchPopularReddit()
+  //   .then((res) => console.log(res))
+  //   .catch((err) => console.log(err));
 
-  resolvers.Query.searchNewReddit()
-    .then((res) => console.log(res))
-    .catch((err) => console.log(err));
+  // resolvers.Query.searchNewReddit()
+  //   .then((res) => console.log(res))
+  //   .catch((err) => console.log(err));
 });
