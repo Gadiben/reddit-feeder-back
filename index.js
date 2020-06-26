@@ -1,6 +1,6 @@
 const { ApolloServer, gql } = require("apollo-server");
 const resolvers = require("./src/resolvers").resolvers;
-
+const dao = require("./postgres-node/dao").dao;
 const typeDefs = gql`
   # Comments in GraphQL strings (such as this one) start with the hash (#) symbol.
 
@@ -31,6 +31,7 @@ const typeDefs = gql`
   # clients can execute, along with the return type for each.
   type Query {
     users: [User]
+    bookmarks(userName: String): User
     searchPopularReddit: [SubReddit]
     searchNewReddit: [SubReddit]
     searchReddit(term: String): [SubReddit]
@@ -64,10 +65,25 @@ server.listen().then(({ url }) => {
   // resolvers.Query.searchReddit(null, { term: "earth" })
   //   .then((res) => console.log(res))
   //   .catch((err) => console.log(err));
+  resolvers.Query.bookmarks(null, { userName: "gutier" })
+    .then((res) => {
+      console.log(res);
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+  // dao
+  //   .findBookmars(1)
+  //   .then((res) => {
+  //     console.log(res);
+  //   })
+  //   .catch((err) => console.log(err));
 
-  resolvers.Query.searchPopularReddit()
-    .then((res) => console.log(res))
-    .catch((err) => console.log(err));
+  // resolvers.Query.searchPopularReddit()
+  //   .then((res) => {
+  //     console.log(res);
+  //   })
+  //   .catch((err) => console.log(err));
 
   // resolvers.Query.searchNewReddit()
   //   .then((res) => console.log(res))

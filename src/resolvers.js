@@ -1,5 +1,5 @@
 const requestToPromise = require("./utils").requestToPromise;
-
+const dao = require("../postgres-node/dao").dao;
 const BASE_URL = "http://www.reddit.com";
 
 const fetchPostsComments = async (subReddits) => {
@@ -91,6 +91,18 @@ res = {
 const resolvers = {
   Query: {
     users: () => users,
+    bookmarks: async (parent, args, context, info) => {
+      const users = await dao.findUserByName(args.userName);
+      if (users.length == 1) {
+        const bookmarks = await dao.findBookmars(users[0].id);
+        return {
+          name: args.userName,
+          bookmarks: bookmarks.map((el) => el.subreddit),
+        };
+      } else {
+        return {};
+      }
+    },
     searchReddit: async (parent, args, context, info) => {
       const subReddits = await requestToPromise(
         BASE_URL + "/subreddits/search.json?q=" + args.term

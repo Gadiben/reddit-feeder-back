@@ -1,7 +1,7 @@
 const request = require("request");
 
 const requestToPromise = (url, deep, verbose) => {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     request(encodeURI(url), {}, function (error, response, body) {
       if (verbose) {
         console.log(url);
