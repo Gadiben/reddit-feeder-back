@@ -12,6 +12,7 @@
   "dependencies": {
     "apollo-server": "^2.15.0",
     "graphql": "^15.1.0",
+    "pg": "^8.2.1",
     "reddit": "^1.0.3",
     "request": "^2.88.2"
   }
