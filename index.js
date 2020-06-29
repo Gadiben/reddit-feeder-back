@@ -3,6 +3,9 @@ const resolvers = require("./src/resolvers").resolvers;
 const dao = require("./postgres-node/dao").dao;
 const typeDefs = gql`
   # Comments in GraphQL strings (such as this one) start with the hash (#) symbol.
+  input SubredditInput {
+    title: String!
+  }
 
   type User {
     name: String
@@ -36,6 +39,12 @@ const typeDefs = gql`
     searchNewReddit: [SubReddit]
     searchReddit(term: String): [SubReddit]
   }
+
+  type Mutation {
+    signup(userName: String!): User
+    addBookmark(subreddit: SubredditInput!, userName: String!): User
+    removeBookmark(subreddit: SubredditInput!, userName: String!): User
+  }
 `;
 
 const users = [
@@ -65,13 +74,44 @@ server.listen().then(({ url }) => {
   // resolvers.Query.searchReddit(null, { term: "earth" })
   //   .then((res) => console.log(res))
   //   .catch((err) => console.log(err));
-  resolvers.Query.bookmarks(null, { userName: "gutier" })
+  // console.log(typeDefs);
+  // resolvers.Mutation.addBookmark(null, {
+  //   subreddit: { title: "r/AskReddit" },
+  //   userName: "gautier",
+  // })
+  //   .then((res) => {
+  //     console.log(res);
+  //   })
+  //   .catch((err) => {
+  //     console.log(err);
+  //   });
+  resolvers.Mutation.signup(null, {
+    userName: "testUser",
+  })
     .then((res) => {
       console.log(res);
     })
     .catch((err) => {
       console.log(err);
     });
+  // resolvers.Mutation.removeBookmark(null, {
+  //   subreddit: { title: "r/AskReddit" },
+  //   userName: "gautier",
+  // })
+  //   .then((res) => {
+  //     console.log(res);
+  //   })
+  //   .catch((err) => {
+  //     console.log(err);
+  //   });
+
+  // resolvers.Query.bookmarks(null, { userName: "gutier" })
+  //   .then((res) => {
+  //     console.log(res);
+  //   })
+  //   .catch((err) => {
+  //     console.log(err);
+  //   });
   // dao
   //   .findBookmars(1)
   //   .then((res) => {
@@ -83,7 +123,9 @@ server.listen().then(({ url }) => {
   //   .then((res) => {
   //     console.log(res);
   //   })
-  //   .catch((err) => console.log(err));
+  //   .catch((err) => {
+  //     console.log(err);
+  //   });
 
   // resolvers.Query.searchNewReddit()
   //   .then((res) => console.log(res))

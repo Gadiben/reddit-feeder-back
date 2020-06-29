@@ -124,5 +124,49 @@ const resolvers = {
       return data;
     },
   },
+  Mutation: {
+    signup: async (parent, args) => {
+      let users = await dao.findUserByName(args.userName);
+      if (users.length == 0) {
+        await dao.addUser(args.userName);
+      }
+
+      users = await dao.findUserByName(args.userName);
+      const userId = users[0].id;
+      const bookmarks = await dao.findBookmars(userId);
+      return {
+        name: args.userName,
+        bookmarks: bookmarks.map((el) => el.subreddit),
+      };
+    },
+    addBookmark: async (parent, args) => {
+      const users = await dao.findUserByName(args.userName);
+      if (users.length == 1) {
+        const userId = users[0].id;
+        await dao.addBookmark(userId, args.subreddit.title);
+        const bookmarks = await dao.findBookmars(userId);
+        return {
+          name: args.userName,
+          bookmarks: bookmarks.map((el) => el.subreddit),
+        };
+      } else {
+        return {};
+      }
+    },
+    removeBookmark: async (parent, args) => {
+      const users = await dao.findUserByName(args.userName);
+      if (users.length == 1) {
+        const userId = users[0].id;
+        await dao.removeBookmark(userId, args.subreddit.title);
+        const bookmarks = await dao.findBookmars(userId);
+        return {
+          name: args.userName,
+          bookmarks: bookmarks.map((el) => el.subreddit),
+        };
+      } else {
+        return {};
+      }
+    },
+  },
 };
 exports.resolvers = resolvers;
