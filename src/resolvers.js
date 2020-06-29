@@ -111,7 +111,7 @@ const resolvers = {
     },
     searchPopularReddit: async () => {
       const subReddits = await requestToPromise(
-        BASE_URL + "/subreddits/popular.json?limit=10"
+        BASE_URL + "/subreddits/popular.json?limit=100"
       );
       const data = fetchPostsComments(subReddits);
       return data;
