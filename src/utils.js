@@ -6,7 +6,6 @@ const requestToPromise = (url, deep, verbose) => {
       if (verbose) {
         console.log(url);
         console.log(error);
-        // console.log(response.body);
       }
       if (error) {
         return reject(error);
